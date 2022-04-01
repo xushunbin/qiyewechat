@@ -17,5 +17,9 @@ class Wechat
     public $secret;
 
 
+    public function getUrl()
+    {
+        echo $this->app_key . " / " . $this->secret . "\n";
+    }
 
 }
