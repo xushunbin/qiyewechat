@@ -30,8 +30,10 @@ interface RequestInterface
     /**
      * 发送接口后执行
      *
-     * @return mixed
+     * @param string|array $response
+     *
+     * @return array|string
      */
-    public function after(array $response, $error);
+    public function after($response);
 
 }

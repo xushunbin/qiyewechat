@@ -9,8 +9,8 @@ interface ClientInterface
      *
      * @param Request $request
      *
-     * @return array
+     * @return array|string
      */
-    public function send(Request $request): array;
+    public function send(Request $request);
 
 }

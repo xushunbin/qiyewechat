@@ -4,11 +4,13 @@ namespace Qiyewechat\http;
 
 use GuzzleHttp\Client as GzClient;
 use GuzzleHttp\Exception\GuzzleException;
+use Qiyewechat\BaseObject;
+
 
 /**
  * 客户端
  */
-class Client implements ClientInterface
+class Client extends BaseObject implements ClientInterface
 {
     /**
      * 接口请求的host
@@ -65,8 +67,9 @@ class Client implements ClientInterface
      *  'query' => ['foo' => 'bar']
      *
      * ```
+     * @return array|string
      */
-    public function send(Request $request): array
+    public function send(Request $request)
     {
         $method = $request->method;
         $url    = rtrim($this->host, '/');
@@ -75,9 +78,8 @@ class Client implements ClientInterface
         }
         $error = [];
         try {
-            $request->checkParams();
-            $options  = $request->getParams();
-            $client   = new GzClient(['base_uri' => $url]);
+            $options = $request->getParams();
+            $client  = new GzClient(['base_uri' => $url]);
             if (!$request->before()) {
                 return [];
             }
@@ -85,11 +87,15 @@ class Client implements ClientInterface
             $response = $res->getBody()->getContents();
             if ($response) {
                 $data = json_decode($response, true);
-                return $request->after($data, $error);
+                if (!$data) {
+                    $data = $response;
+                }
+                $request->after($data);
+                return $data;
             }
         } catch (GuzzleException $e) {
-            $error = $e;
+            throw $e;
         }
-        return $request->after([], $error);
+        return $request->after([]);
     }
 }

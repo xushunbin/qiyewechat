@@ -12,9 +12,11 @@ use yii\web\NotFoundHttpException;
  * @property $corpid
  * @property $corpsecret
  * @property $_state
+ * @property $access_token
  */
 class Wechat extends Component
 {
+
     /**
      * @var Connection
      */
@@ -44,7 +46,11 @@ class Wechat extends Component
      */
     public $agentid;
 
-
+    /**
+     * 扫码登录后重定向地址
+     *
+     * @var string
+     */
     public $redirect_uri = '';
 
     /**
@@ -53,6 +59,7 @@ class Wechat extends Component
      * @var string
      */
     private $_state = '';
+
 
     /**
      * 模块初始化
@@ -66,26 +73,8 @@ class Wechat extends Component
             throw new \Exception('corpid and corpsecret are required.');
         }
         $this->redis = Instance::ensure('redis', Connection::class);
-    }
 
-    /**
-     * 设置state
-     *
-     * @param $state
-     */
-    public function setState($state)
-    {
-        $this->_state = $state;
-    }
 
-    /**
-     * 获取state
-     *
-     * @return string
-     */
-    public function getState()
-    {
-        return $this->_state;
     }
 
     /**
@@ -98,11 +87,11 @@ class Wechat extends Component
      */
     public function registerScanUrl(string $state)
     {
-        $this->setState($state);
         if (empty($this->redirect_uri)) {
             throw new NotFoundHttpException('redirect_url required.');
         }
-        return sprintf('https://open.work.weixin.qq.com/wwopen/sso/qrConnect?appid=%s&agentid=%s&redirect_uri=%s&state=%s', $this->corpid, $this->agentid, urlencode($this->redirect_uri), $state);
+        return sprintf('https://open.work.weixin.qq.com/wwopen/sso/qrConnect?appid=%s&agentid=%s&redirect_uri=%s&state=%s',
+            $this->corpid, $this->agentid, urlencode($this->redirect_uri), $state);
     }
 
     /**
@@ -110,11 +99,56 @@ class Wechat extends Component
      * @param string $scope snsapi_base|snsapi_userinfo|snsapi_privateinfo
      *
      * @return string
+     * @deprecated
      */
     public function registerPhoneUrl(string $state, $scope = 'snsapi_privateinfo')
     {
-        return sprintf('https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=%s&scope=%s&state=%s#wechat_redirect', $this->corpid, $this->redirect_uri, 'code', 'snsapi_privateinfo', $state);
-
+        return sprintf('https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=%s&scope=%s&state=%s#wechat_redirect',
+            $this->corpid, $this->redirect_uri, 'code', 'snsapi_privateinfo', $state);
     }
+
+    /**
+     * 每一小时获取一次token
+     *
+     * @return mixed|string
+     * @throws \Exception
+     */
+    public function flushAccessTokenPerHour()
+    {
+        return $this->createObject(self::ACCESS_TOKEN)->getAccessToken();
+    }
+
+    const DEPARTMENT = 'department';
+    const USER = 'user';
+    const MESSAGE = 'message';
+    const ACCESS_TOKEN = 'access_token';
+    /**
+     * @var []BaseObject
+     */
+    public $type_map = [
+        self::DEPARTMENT   => Department::class,
+        self::USER         => User::class,
+        self::MESSAGE      => Message::class,
+        self::ACCESS_TOKEN => AccessToken::class,
+    ];
+
+    /**
+     * @param string $type
+     *
+     * @return mixed|Department|User|Message|AccessToken
+     * @throws \Exception
+     */
+    public function createObject($type = '')
+    {
+        if (isset($this->type_map[$type])) {
+            /**
+             * @var BaseObject $baseObject
+             */
+            $baseObject = $this->type_map[$type];
+            return $baseObject::getInstance();
+        }
+        throw new \Exception('Create instance failed.');
+    }
+
 
 }

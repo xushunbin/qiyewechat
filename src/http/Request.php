@@ -2,10 +2,10 @@
 
 namespace Qiyewechat\http;
 
-use BadMethodCallException;
-use http\Exception\InvalidArgumentException;
+use GuzzleHttp\RequestOptions;
+use Qiyewechat\BaseObject;
 
-abstract class Request implements RequestInterface
+abstract class Request extends BaseObject implements RequestInterface
 {
     // 请求方式
     const POST = 'POST';
@@ -18,26 +18,20 @@ abstract class Request implements RequestInterface
      */
     public $method = self::POST; // 默认
 
+    private $_callback = null;
+
+    public $callback = null;
+
     /**
      * 实例化
      */
-    public function __construct()
+    public function init()
     {
         if (!in_array($this->method, [self::POST, self::GET, self::PUT])) {
-            throw new BadMethodCallException('Your request method is not supported.');
+            throw new \Exception('Your request method is not supported.');
         }
-    }
-
-    /**
-     * 检查参数
-     */
-    public function checkParams()
-    {
-        $params = $this->getParams();
-        foreach ($params as $k => $d) {
-            if (!defined('GuzzleHttp\RequestOptions::' . $k)) {
-                throw new InvalidArgumentException('Your parameter format error.');
-            }
+        if ($this->callback !== null && is_callable($this->callback)) {
+            $this->_callback = $this->callback;
         }
     }
 
@@ -53,10 +47,15 @@ abstract class Request implements RequestInterface
 
     /**
      * 接口请求结束后执行
+     * @param array $response
      *
-     * @return void
+     * @return array|string
      */
-    public function after(array $response, $error)
+    public function after($response)
     {
+        if (is_callable($this->_callback)) {
+            call_user_func($this->_callback, $response);
+        }
+        return $response;
     }
 }
